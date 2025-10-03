@@ -9,15 +9,17 @@ interface GradientButtonProps {
   textStyle?: TextStyle;
   variant?: 'primary' | 'secondary' | 'danger';
   size?: 'small' | 'medium' | 'large';
+  disabled?: boolean;
 }
 
-export function GradientButton({ 
-  title, 
-  onPress, 
-  style, 
-  textStyle, 
+export function GradientButton({
+  title,
+  onPress,
+  style,
+  textStyle,
   variant = 'primary',
-  size = 'medium' 
+  size = 'medium',
+  disabled = false
 }: GradientButtonProps) {
   const getGradientColors = () => {
     switch (variant) {
@@ -39,7 +41,12 @@ export function GradientButton({
   };
 
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.container, style]} activeOpacity={0.8}>
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.container, style, disabled && styles.disabled]}
+      activeOpacity={0.8}
+      disabled={disabled}
+    >
       <LinearGradient
         colors={getGradientColors()}
         start={{ x: 0, y: 0 }}
@@ -75,5 +82,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  disabled: {
+    opacity: 0.5,
   },
 });

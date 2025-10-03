@@ -1,15 +1,74 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GradientButton } from '@/components/GradientButton';
 import { LuxuryCard } from '@/components/LuxuryCard';
 import { Droplets, Eye, EyeOff } from 'lucide-react-native';
+import { supabase } from '@/lib/supabase';
+import { useRouter } from 'expo-router';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
+
+  const handleSignIn = async () => {
+    setError('');
+
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        setError(signInError.message);
+      } else if (data.user) {
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!resetEmail) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(resetEmail);
+
+      if (resetError) {
+        Alert.alert('Error', resetError.message);
+      } else {
+        Alert.alert('Success', 'Password reset link sent to your email');
+        setShowForgotPassword(false);
+        setResetEmail('');
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const ForgotPasswordFlow = () => (
     <LuxuryCard style={styles.forgotCard}>
@@ -26,11 +85,15 @@ export default function LoginPage() {
         placeholderTextColor="#B0BEC5"
         autoCapitalize="none"
         keyboardType="email-address"
+        value={resetEmail}
+        onChangeText={setResetEmail}
+        editable={!loading}
       />
       <GradientButton
-        title="Send Reset Link"
-        onPress={() => setShowForgotPassword(false)}
+        title={loading ? 'Sending...' : 'Send Reset Link'}
+        onPress={handlePasswordReset}
         style={styles.resetButton}
+        disabled={loading}
       />
       <TouchableOpacity onPress={() => setShowForgotPassword(false)}>
         <Text style={styles.backToLogin}>Back to Login</Text>
@@ -61,15 +124,23 @@ export default function LoginPage() {
             {/* Login Form */}
             <LuxuryCard style={styles.formCard}>
               <View style={styles.form}>
+                {error ? (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                ) : null}
+
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Username</Text>
+                  <Text style={styles.label}>Email</Text>
                   <TextInput
                     style={styles.input}
-                    value={username}
-                    onChangeText={setUsername}
-                    placeholder="Enter your username"
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Enter your email"
                     placeholderTextColor="#B0BEC5"
                     autoCapitalize="none"
+                    keyboardType="email-address"
+                    editable={!loading}
                   />
                 </View>
 
@@ -83,6 +154,7 @@ export default function LoginPage() {
                       placeholder="Enter your password"
                       placeholderTextColor="#B0BEC5"
                       secureTextEntry={!showPassword}
+                      editable={!loading}
                     />
                     <TouchableOpacity
                       onPress={() => setShowPassword(!showPassword)}
@@ -97,11 +169,16 @@ export default function LoginPage() {
                 </View>
 
                 <GradientButton
-                  title="Sign In"
-                  onPress={() => console.log('Sign In')}
+                  title={loading ? 'Signing In...' : 'Sign In'}
+                  onPress={handleSignIn}
                   size="large"
                   style={styles.signInButton}
+                  disabled={loading}
                 />
+
+                {loading && (
+                  <ActivityIndicator size="small" color="#40E0D0" style={styles.loader} />
+                )}
 
                 <View style={styles.links}>
                   <TouchableOpacity onPress={() => setShowForgotPassword(true)}>
@@ -110,7 +187,7 @@ export default function LoginPage() {
                   
                   <View style={styles.signUpLink}>
                     <Text style={styles.signUpText}>New user? </Text>
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={() => router.push('/signup')}>
                       <Text style={styles.linkText}>Sign Up</Text>
                     </TouchableOpacity>
                   </View>
@@ -270,5 +347,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(255, 82, 82, 0.1)',
+    borderWidth: 1,
+    borderColor: '#FF5252',
+    borderRadius: 12,
+    padding: 12,
+  },
+  errorText: {
+    color: '#FF5252',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  loader: {
+    marginTop: 10,
   },
 });
